@@ -4,18 +4,23 @@ const mongoose = require("mongoose");
 
 const Card = require("../models/card.js");
 const Deck = require("../models/deck.js");
+const deck = require("../models/deck.js");
 
 const getCard = async (req, res, next) => {};
 
 const createCard = async (req, res, next) => {
+  if (!req.isAuthenticated()) {
+    return next(new HttpError("Not Authenticated.", 401));
+  }
+
   const deckId = req.params.deckId;
   const { front, back } = req.body;
 
   let deck;
   try {
-    deck = await Deck.findById(deckId);
+    deck = await Deck.findById(deckId)
   } catch (err) {
-    const error = new HttpError("1 Creating card failed.", 500);
+    const error = new HttpError("Could not find Deck.", 404);
     return next(error);
   }
 
@@ -24,7 +29,9 @@ const createCard = async (req, res, next) => {
     return next(error);
   }
 
-  //console.log(deck);
+  if (req.user._id.toString() != deck.creator.toString()) {
+    return next(new HttpError("Not Authorized.", 401));
+  }
 
   const createdCard = new Card({
     deck: deckId,
@@ -50,11 +57,19 @@ const createCard = async (req, res, next) => {
 };
 
 const deleteCard = async (req, res, next) => {
+  if (!req.isAuthenticated()) {
+    console.log(req.user);
+    return next(new HttpError("Not Authenticated.", 401));
+  }
+
   const cardId = req.body.cardId;
 
   let card;
   try {
-    card = await Card.findById(cardId).populate("deck");
+    card = await Card.findById(cardId).populate({
+      path: "deck",
+      populate: { path: "creator" },
+    });
   } catch (err) {
     const error = new HttpError("Could not find Card with ID=" + cardId, 404);
     return next(error);
@@ -63,6 +78,10 @@ const deleteCard = async (req, res, next) => {
   if (!card) {
     const error = new HttpError("Could not find Card with ID=" + cardId, 404);
     return next(error);
+  }
+
+  if (card.deck.creator._id != req.user._id) {
+    return next(new HttpError("Not Authorized.", 401));
   }
 
   try {
