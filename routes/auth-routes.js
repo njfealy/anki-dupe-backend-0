@@ -10,10 +10,19 @@ router.get("/login", authController.login);
 
 router.get("/logout", authController.logout);
 
+router.get("/status", (req, res) => {
+  if (req.isAuthenticated()) {
+    return res.json({ authenticated: true, user: req.user });
+  }
+  res.json({ authenticated: false });
+});
+
 router.get(
   "/google/redirect",
   passport.authenticate("google"),
-  (req, res, next) => {res.send(req.user)}
+  (req, res, next) => {
+    res.redirect("http://localhost:5173");
+  }
 );
 
 router.get("/google", passport.authenticate("google", { scope: ["profile"] }));
