@@ -7,7 +7,6 @@ const userSchema = new Schema({
   googleId: { type: String, required: false },
   picture: { type: String },
   decks: [{ type: mongoose.Types.ObjectId, ref: "Deck", default: [] }],
-  studies: [{ type: mongoose.Types.ObjectId, ref: "Study", default: [] }],
 });
 
 module.exports = mongoose.model("User", userSchema);
