@@ -57,7 +57,7 @@ const getUserDecks = async (req, res, next) => {
     {
       $project: {
         card: "$cards",
-        _id: 1, // Include _id for debugging
+        _id: 1,
       },
     },
     {
@@ -115,11 +115,11 @@ const getUserDecks = async (req, res, next) => {
   ]);
 
   await Card.aggregate([
-    {
-      $match: {
-        r: -1,
-      },
-    },
+    // {
+    //   $match: {
+    //     r: -1,
+    //   },
+    // },
     {
       $group: {
         _id: "$deck", // Group by deck ID
@@ -149,7 +149,65 @@ const getUserDecks = async (req, res, next) => {
     },
   ]);
 
-  const decks = await Deck.aggregate([
+  await Deck.aggregate([
+    {
+      $match: {
+        creator: new mongoose.Types.ObjectId(req.user._id),
+      },
+    },
+    {
+      $addFields: {
+        isReviewedWithin24Hours: {
+          $lte: [
+            {
+              $dateDiff: {
+                startDate: "$date_last_reviewed",
+                endDate: new Date(),
+                unit: "hour",
+              },
+            },
+            24,
+          ],
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        name: 1,
+        creator: 1,
+        date_last_reviewed: 1,
+        date_last_visited: 1,
+        size: 1,
+        learn_size: { $size: "$learn_cards" },
+        review_size: { $size: "$review_cards" },
+        new_per_day: 1,
+        learned_today: {
+          $cond: {
+            if: "$isReviewedWithin24Hours",
+            then: "$learned_today",
+            else: 0,
+          },
+        },
+        new_today: {
+          $min: [
+            { $subtract: ["$new_per_day", "$learned_today"] },
+            { $size: "$learn_cards" },
+          ],
+        },
+      },
+    },
+    {
+      $merge: {
+        into: "decks",
+        on: "_id",
+        whenMatched: "merge",
+        whenNotMatched: "insert",
+      },
+    },
+  ]);
+
+  const decksInfo = await Deck.aggregate([
     {
       $match: {
         creator: new mongoose.Types.ObjectId(req.user._id),
@@ -176,7 +234,7 @@ const getUserDecks = async (req, res, next) => {
       },
     },
   ]);
-  res.status(200).json({ decks });
+  res.status(200).json({ decks: decksInfo });
 };
 
 exports.getUser = getUser;

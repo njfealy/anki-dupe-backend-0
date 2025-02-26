@@ -7,6 +7,7 @@ const cardSchema = new Schema({
   front: { type: String, required: true },
   back: { type: String, required: true },
   r: { type: Number, default: -1 },
+  i: { type: Number, default: -1 },
   s: { type: Number, default: -1 },
   d: { type: Number, default: -1 },
   date_last_reviewed: { type: Date },
