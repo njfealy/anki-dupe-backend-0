@@ -126,7 +126,41 @@ const copyDeck = async (req, res, next) => {
   res.status(201).json({ message: "Successfully copied deck.", deck: copy });
 };
 
-const updateDeck = async (req, res, next) => {};
+const renameDeck = async (req, res, next) => {
+  console.log("rename")
+  if (!req.isAuthenticated())
+    return next(new HttpError("Not authenticated.", 401));
+
+  let deck;
+  try {
+    deck = await Deck.findById(req.params.deckId);
+  } catch (err) {
+    return next(new HttpError("Deck not found.", 404));
+  }
+  if (!deck) return next(new HttpError("Deck not found.", 404));
+
+  let user;
+  try {
+    user = await User.findById(req.user._id);
+  } catch (err) {
+    return next(new HttpError("User not found.", 404));
+  }
+  if (!user) return next(new HttpError("User not found.", 404));
+
+  if (req.user._id.toString() != deck.creator.toString())
+    return next(new HttpError("Not authorized to rename this deck.", 401));
+
+  deck.name = req.body.newName;
+
+  try {
+    await deck.save();
+  } catch (err) {
+    console.log(err);
+    return next(new HttpError("Failed to rename deck.", 500));
+  }
+
+  res.status(200).json({ message: "Successfully renamed deck." });
+};
 
 const deleteDeck = async (req, res, next) => {
   if (!req.isAuthenticated())
@@ -214,6 +248,46 @@ const addCard = async (req, res, next) => {
     .json({ message: "Successfully added card to deck.", card: createdCard });
 };
 
+const editCard = async (req, res, next) => {
+  if (!req.isAuthenticated())
+    return next(new HttpError("Not authenticated.", 401));
+
+  let deck;
+  try {
+    deck = await Deck.findById(req.params.deckId);
+  } catch (err) {
+    return next(new HttpError("Deck not found.", 404));
+  }
+  if (!deck) return next(new HttpError("Deck not found.", 404));
+
+  if (req.user._id.toString() != deck.creator.toString())
+    return next(new HttpError("Not authorized to edit card.", 401));
+
+  let card;
+  try {
+    card = await Card.findById(req.params.cardId);
+  } catch (err) {
+    return next(new HttpError("Card not found.", 404));
+  }
+  if (!card) return next(new HttpError("Card not found.", 404));
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    card.front = req.body.newFront;
+    card.back = req.body.newBack;
+    await card.save({ session });
+    await session.commitTransaction();
+  } catch (err) {
+    console.log(err);
+    await session.abortTransaction();
+    return next(new HttpError("Failed to edit card.", 500));
+  }
+  await session.endSession();
+  res.status(200).json({ message: "Successfully edited card." });
+};
+
 const deleteCard = async (req, res, next) => {
   if (!req.isAuthenticated())
     return next(new HttpError("Not authenticated.", 401));
@@ -258,7 +332,9 @@ exports.getDeck = getDeck;
 exports.getAllDecks = getAllDecks;
 exports.createDeck = createDeck;
 exports.copyDeck = copyDeck;
+exports.renameDeck = renameDeck;
 exports.deleteDeck = deleteDeck;
 
 exports.addCard = addCard;
+exports.editCard = editCard;
 exports.deleteCard = deleteCard;
