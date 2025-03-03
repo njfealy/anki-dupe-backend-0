@@ -69,7 +69,7 @@ const getStudy = async (req, res, next) => {
     {
       $project: {
         _id: 0,
-        study_card: "$review_cards",
+        card: "$review_cards",
       },
     },
   ]);
@@ -92,7 +92,6 @@ const submitStudy = async (req, res, next) => {
 };
 
 const gradeCard = async (req, res, next) => {
-  console.log("test");
   if (!req.isAuthenticated())
     return next(new HttpError("Not authenticated.", 401));
 
@@ -129,10 +128,10 @@ const gradeCard = async (req, res, next) => {
 
   try {
     if (card.r == -1) {
-      console.log(deck.learned_today)
       deck.learned_today++;
-      console.log("learned")
+      console.log(deck.learned_today)
     }
+    deck.date_last_reviewed = new Date();
 
     card.s = alg.s(card.d, card.s, card.r, g);
     card.r = alg.r(0, card.s)
